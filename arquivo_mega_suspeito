@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cartinha — Corações Caindo</title>
+  <style>
+    :root{
+      --bg:#ffeef2;
+      --card:#ffffffcc;
+      --accent:#ff4d84;
+      --text:#3a2b2b;
+    }
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    body{background:linear-gradient(180deg,var(--bg),#fff);overflow:hidden;display:grid;place-items:center}
+
+    /* Canvas ocupa toda a tela */
+    canvas#hearts{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+    /* Cartinha */
+    .card{position:relative;z-index:2;width:min(820px,92%);max-width:820px;background:var(--card);backdrop-filter:blur(6px);border-radius:18px;padding:36px 28px;box-shadow:0 10px 30px rgba(60,20,40,0.08);display:grid;grid-template-columns:1fr 180px;gap:20px;align-items:center}
+
+    .left{padding-right:8px}
+    h1{margin:0 0 10px 0;font-size:28px;color:var(--text)}
+    p{margin:0;color:#543a46;line-height:1.5;font-size:16px}
+
+    .photo{width:160px;height:160px;border-radius:12px;background:linear-gradient(135deg,#ffd6e6,#ffd9f0);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+    .photo img{width:100%;height:100%;object-fit:cover;display:block}
+    .small{font-size:13px;color:#6b4b57;margin-top:10px}
+
+    .controls{display:flex;gap:8px;margin-top:16px}
+    .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+    .btn--accent{background:var(--accent);color:white}
+    .btn--ghost{background:transparent;border:1px solid rgba(90,20,60,0.08)}
+
+    footer{position:fixed;left:12px;bottom:12px;font-size:12px;color:#8b6b76;z-index:3}
+
+    /* Mobile: card vira coluna */
+    @media (max-width:640px){
+      .card{grid-template-columns:1fr;gap:14px;padding:20px}
+      .photo{width:100%;height:200px;border-radius:12px}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="hearts"></canvas>
+
+  <main class="card" role="main" aria-label="Cartinha com corações caindo">
+    <section class="left">
+      <h1>Pra você, com carinho ❤️</h1>
+      <p id="message">Oi! Só passei pra dizer que você é muito especial pra mim. Espero que seu dia fique mais leve e cheio de sorrisos — assim como esse site com corações pra você. Clique nos corações ou na foto pra ver uma surpresa!</p>
+
+      <div class="controls">
+        <button id="toggleHearts" class="btn btn--accent">Parar/Retomar corações</button>
+        <button id="customize" class="btn btn--ghost">Editar texto</button>
+      </div>
+      <div class="small">Dica: clique na foto pra trocar por uma sua.</div>
+    </section>
+
+    <aside class="photo" id="photo" title="Clique para trocar a foto">
+      <img id="photoImg" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><rect width='100%' height='100%' fill='%23ffd6e6'/><text x='50%' y='50%' font-size='28' dominant-baseline='middle' text-anchor='middle' fill='%235a2a3a'>Clique pra foto</text></svg>" alt="Placeholder - clique para trocar">
+    </aside>
+  </main>
+
+  <footer>Feito com ♥ — Salve este arquivo como <strong>cartinha.html</strong> e abra no navegador.</footer>
+
+  <script>
+    // =================== Corações no canvas ===================
+    const canvas = document.getElementById('hearts');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = innerWidth;
+    let H = canvas.height = innerHeight;
+
+    window.addEventListener('resize',() => { W = canvas.width = innerWidth; H = canvas.height = innerHeight; });
+
+    function rand(min,max){ return Math.random()*(max-min)+min }
+
+    class Heart{
+      constructor(){
+        this.reset();
+      }
+      reset(){
+        this.x = rand(0,W);
+        this.y = rand(-H, -20);
+        this.size = rand(10,30);
+        this.speed = rand(0.6,2.2);
+        this.sway = rand(-0.6,0.6);
+        this.alpha = rand(0.6,1);
+        const pal = [[255,77,132],[255,45,85],[255,132,176],[255,95,140]];
+        const c = pal[Math.floor(rand(0,pal.length))];
+        this.color = `rgba(${c[0]},${c[1]},${c[2]},`;
+      }
+      update(){
+        this.y += this.speed;
+        this.x += Math.sin(this.y*0.01)*this.sway;
+        if(this.y > H + 40) this.reset();
+      }
+      draw(){
+        ctx.save();
+        ctx.translate(this.x,this.y);
+        ctx.scale(this.size/20,this.size/20);
+        ctx.globalAlpha = this.alpha;
+        // draw a heart shape using path
+        ctx.beginPath();
+        ctx.moveTo(0, -8);
+        ctx.bezierCurveTo(12,-24,36,-6,0,24);
+        ctx.bezierCurveTo(-36,-6,-12,-24,0,-8);
+        ctx.closePath();
+        ctx.fillStyle = this.color + this.alpha + ')';
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    let hearts = [];
+    for(let i=0;i<60;i++) hearts.push(new Heart());
+    let running = true;
+
+    function loop(){
+      ctx.clearRect(0,0,W,H);
+      for(const h of hearts){
+        h.update();
+        h.draw();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // Toggle hearts
+    const toggleBtn = document.getElementById('toggleHearts');
+    toggleBtn.addEventListener('click',()=>{
+      running = !running;
+      if(running){
+        hearts = hearts.length?hearts:[];
+        if(hearts.length===0) for(let i=0;i<60;i++) hearts.push(new Heart());
+        loop();
+      } else {
+        hearts = [];
+      }
+    });
+
+    // Small heart burst when clicking the message
+    const message = document.getElementById('message');
+    message.addEventListener('click',(e)=>{
+      spawnBurst(e.clientX, e.clientY);
+    });
+
+    function spawnBurst(cx,cy){
+      const burst = [];
+      for(let i=0;i<20;i++){
+        const b = {
+          x:cx, y:cy,
+          vx:rand(-3,3), vy:rand(-6,-1), life:rand(40,80), size:rand(6,14), alpha:1
+        };
+        burst.push(b);
+      }
+      let t = 0;
+      function animateBurst(){
+        t++;
+        for(let i=burst.length-1;i>=0;i--){
+          const p = burst[i];
+          p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life--;
+          ctx.save(); ctx.globalAlpha = Math.max(0,p.life/80);
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y-4);
+          ctx.bezierCurveTo(p.x+8,p.y-20,p.x+24,p.y-6,p.x,p.y+24);
+          ctx.bezierCurveTo(p.x-24,p.y-6,p.x-8,p.y-20,p.x,p.y-4);
+          ctx.fillStyle = 'rgba(255,77,132,'+ (Math.max(0,p.life/80)) +')';
+          ctx.fill(); ctx.restore();
+          if(p.life<=0) burst.splice(i,1);
+        }
+        if(burst.length>0) requestAnimationFrame(animateBurst);
+      }
+      animateBurst();
+    }
+
+    // Photo replace (open file chooser)
+    const photo = document.getElementById('photo');
+    const photoImg = document.getElementById('photoImg');
+    photo.addEventListener('click',()=>{
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = e => {
+        const f = e.target.files[0];
+        if(!f) return;
+        const url = URL.createObjectURL(f);
+        photoImg.src = url;
+      };
+      input.click();
+    });
+
+    // Edit text inline
+    document.getElementById('customize').addEventListener('click',()=>{
+      const newText = prompt('Edite a mensagem:', message.textContent);
+      if(newText !== null) message.textContent = newText;
+    });
+
+    // Accessibility: allow keyboard toggle hearts (H key)
+    window.addEventListener('keydown',(e)=>{
+      if(e.key.toLowerCase()==='h') toggleBtn.click();
+    });
+
+    // Stop canvas animations when tab not visible to save CPU
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden) cancelAnimationFrame(loop);
+      else loop();
+    });
+  </script>
+</body>
+</html>
